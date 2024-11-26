@@ -129,7 +129,7 @@ void ShowbBorrowList(){
 }
 //개인정보 수정
 void ResetInfo(client구조체){
-  
+  //구조체에서 해당 코드 찾기, 노드 삭제후 앞뒤 노드 연결, 수정된 구조체 파일에 입력하기
 }
 //회원 탈퇴
 void DeleteAccount(client구조체){
