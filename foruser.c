@@ -3,40 +3,41 @@
 #include <string.h>
 #include <unistd.h>
 
-void BookSearch();
+int BookSearch();
 void ShowbBorrowList();
 void DeleteAccount();
-void PrintSearchResult(구조체링크);
+void ResetInfo(client구조체);
+void PrintSearchResult(book구조체링크);
 
 int UserMenu(){
+  int menu;
   while(1){
-    int menu;
     printf(">> 회원 메뉴 <<\n");
     printf("1. 도서 검색  2. 내 대여 목록\n3. 프로그램 종료  4. 회원 탈퇴\n5. 로그아웃  6. 프로그램 종료\n\n");
     printf("번호를 선택하세요: ");
     scanf("%d", &menu);
-    switch(menu1){
+    switch(menu){
       case 1:
         system("clear");
-        BookSearch();
+        BookSearch(book구조체링크);
         system("clear");
       break;
       
       case 2:
         system("clear");
-        ShowbBorrowList();
+        ShowbBorrowList(book구조체링크);
         system("clear");
       break;
       
       case 3:
         system("clear");
-        DeleteAccount();
+        DeleteAccount(client구조체);
         system("clear");
       break;
       
       case 4:
         system("clear");
-        Logout();
+        ResetInfo(client구조체);
         system("clear");
       break;
       
@@ -72,23 +73,23 @@ int BookSearch(){
     scanf("%d" , &menu);
     switch(menu){
       case 1:
-        PrintSearchResult(구조체링크);
+        PrintSearchResult(book구조체링크);
         break;
   
       case 2:
-        PrintSearchResult(구조체링크);
+        PrintSearchResult(book구조체링크);
         break;
   
       case 3:
-        PrintSearchResult(구조체링크);
+        PrintSearchResult(book구조체링크);
         break;
   
       case 4:
-        PrintSearchResult(구조체링크);
+        PrintSearchResult(book구조체링크);
         break;
   
       case 5:
-        PrintSearchResult(구조체링크);
+        PrintSearchResult(book구조체링크);
         break;
   
       case 6:
@@ -99,10 +100,12 @@ int BookSearch(){
         printf("잘못된 번호입니다.\n");
         break;
     }
+  }
+}
     
 
 //검색 결과 함수
-void PrintSearchResult(구조체링크){
+void PrintSearchResult(book구조체링크){
   printf(">> 검색 결과 <<\n");
   printf("도서명: \n");
   printf("출판사: \n");
@@ -112,10 +115,8 @@ void PrintSearchResult(구조체링크){
   printf("대여가능 여부:  \n");
   printf("** Y는 대여가능, N은 대여불가를 의미 \n");
   printf("** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수) \n\n");
-  }
 } 
     
-}
 //내 대여 목록
 void ShowbBorrowList(){
   printf(">> 내 대여 목록 <<\n");
@@ -127,7 +128,7 @@ void ShowbBorrowList(){
   }
 }
 //개인정보 수정
-viod ResetInfo(client구조체){
+void ResetInfo(client구조체){
   
 }
 //회원 탈퇴
