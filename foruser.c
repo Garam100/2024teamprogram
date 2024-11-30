@@ -36,7 +36,7 @@ typedef struct borrow {
 // 함수 선언
 void UserMenu(book *, client *, borrow *, int);
 void BookSearch(book *);
-void ShowBorrowList(borrow *, book *);
+void ShowBorrowList(borrow *, book *, int);
 void DeleteAccount(client **, int);
 void ResetInfo(client **, int);
 void PrintSearchResult(book *);
@@ -44,8 +44,10 @@ book *SearchBookByName(book *, const char *);
 book *SearchBookByAuthor(book *, const char *);
 book *SearchBookByPublisher(book *, const char *);
 book *SearchBookByISBN(book *, long long);
+book *SearchBookByBookID(book *, int);
 void PrintAllBooks(book *);
 void SaveToFile(client *);
+
 
 //전역변수: 책 검색시 총권수랑 대여권수 계산하려고 만들었어요
 int totalBooks;  
@@ -68,7 +70,7 @@ void UserMenu(book *bhead, client *chead, borrow *dhead,int login_id) {
                 break;
             case 2:
                 system("clear");
-                ShowBorrowList(dhead, bhead);
+                ShowBorrowList(dhead, bhead, login_id);
                 break;
             case 3:
                 system("clear");
@@ -224,6 +226,17 @@ book *SearchBookByISBN(book *bhead, long long isbn) {
   return firstBook;
 }
 
+//bookid로 검색
+book *SearchBookByBookID(book *bhead, int book_id){
+  book *tmp = bhead;  
+  while (tmp) {
+      if (tmp->book_id == book_id) 
+        return tmp;
+      tmp = tmp->next;
+  }
+  return NULL;
+}
+
 // 검색 결과 출력
 void PrintSearchResult(book *result) {
   if (result) {
@@ -258,23 +271,28 @@ void PrintAllBooks(book *bhead) {
 }
 
 // 내 대여 목록 출력
-void ShowBorrowList(borrow *dhead, book *bhead) {
-  borrow *tmp = dhead;  
-  printf(">> 내 대여 목록 <<\n");
-  while (tmp) {
-      book *book = SearchBookByISBN(bhead, tmp->book_id);
-      if (book) {
-          printf("도서번호: %d\n", book->book_id);
-          printf("도서명: %s\n", book->book_name);
-          printf("대여일자: %s", ctime(&tmp->borrow_date));
-          printf("반납일자: %s\n", ctime(&tmp->return_date));
+void ShowBorrowList(borrow *dhead, book *bhead, int login_id) {
+  borrow *borrow_tmp = dhead;  
+  book *book_tmp = NULL;
+  struct tm *borrowDate = NULL, *returnDate = NULL;
+  char *weekdays[] = {"일", "월", "화", "수", "목", "금", "토"}; 
+  printf("\n>> 내 대여 목록 <<\n");  
+  while (borrow_tmp) {
+      if(borrow_tmp->client_id ==login_id){
+          book_tmp=SearchBookByBookID(bhead, borrow_tmp->book_id);
+          borrowDate = localtime(&borrow_tmp->borrow_date);
+          returnDate = localtime(&borrow_tmp->return_date);
+          printf("도서번호: %d\n", book_tmp->book_id);
+          printf("도서명: %s\n", book_tmp->book_name);
+          printf("대여일자: %d년 %d월 %d일 %s요\n",borrowDate->tm_year+1900,borrowDate->tm_mon+1,borrowDate->tm_mday, weekdays[borrowDate->tm_wday]);
+          printf("반납일자: %d년 %d월 %d일 %s요일\n",returnDate->tm_year+1900,returnDate->tm_mon+1,returnDate->tm_mday, weekdays[returnDate->tm_wday]);
       }
-      tmp = tmp->next;
+      borrow_tmp = borrow_tmp->next;
   }
 }
 
 
-//수정된 연결리스트 파일에 저장하는 함수(저장 후엔 연결리스트 새롭게 생성해주세요!)
+//수정된 연결리스트 파일에 저장하는 함수
 void SaveToFile(client *chead) {
     FILE *file = fopen("client.txt", "w"); // client.txt파일 열기(파일명 다르면 수정해주세요)
     client *tmp = chead;
@@ -310,12 +328,12 @@ void ResetInfo(client **chead, int login_id) {
     while (temp) {
         if (temp->id == login_id) {
             printf("새로운 비밀번호를 입력하세요");
-            scanf("%s", temp->password);
+            scanf("%19[^\n]", temp->password);
             printf("새로운 주소를 입력하세요: ");
-            scanf("%s", temp->address);
+            scanf("%49[^\n]", temp->address);
             printf("새로운 전화번호를 입력하세요: ");
-            scanf("%s", temp->phone);
-            printf("개인정보가 성공적으로 수정되었습니다.\n");
+            scanf("%19[^\n]", temp->phone);
+            printf("개인정보가 수정되었습니다.\n");
             SaveToFile(*chead);
             return;
         }
