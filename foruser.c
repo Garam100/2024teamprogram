@@ -33,6 +33,13 @@ typedef struct borrow {
     struct borrow *next;
 } borrow;
 
+typedef struct search { //동일한 검색결과를 isbn별로 누적해서 더하기 위해 만들었습니다
+    long long isbn;
+    int total;
+    int borrowed;
+    struct search *next;
+} search;
+
 // 함수 선언
 void UserMenu(book *, client *, borrow *, char *);
 void BookSearch(book *);
@@ -40,9 +47,7 @@ void ShowBorrowList(borrow *, book *, char *);
 void DeleteAccount(client **, char *, borrow *);
 void ResetInfo(client **, char *);
 void PrintSearchResult(book *);
-book *SearchBookByName(book *, char *);
-void SearchBookByAuthor(book *, char *);
-void SearchBooksByPublisher(book *, char *);
+void SearchBook(book *, int , char *);
 book *SearchBookByISBN(book *, long long);
 book *SearchBookByBookID(book *, int);
 void PrintAllBooks(book *);
@@ -108,18 +113,17 @@ void BookSearch(book *bhead) {
           case 1:
               printf("도서명을 입력하세요: ");
               scanf("%s", searchWord);
-              result = SearchBookByName(bhead, searchWord);
-              PrintSearchResult(result);
+              SearchBook(bhead, 1, searchWord);
               break;
           case 2:
               printf("저자명을 입력하세요: ");
               scanf("%s", searchWord);
-              SearchBookByAuthor(bhead, searchWord);
+              SearchBook(bhead, 2, searchWord);
               break;
           case 3:
               printf("출판사를 입력하세요: ");
               scanf("%s", searchWord);
-              SearchBookByPublisher(bhead, searchWord);
+              SearchBook(bhead, 3, searchWord);
               break;
           case 4:
               printf("ISBN을 입력하세요: ");
@@ -140,145 +144,81 @@ void BookSearch(book *bhead) {
   }
 }
 
-// 도서 검색 함수들
-// 책명으로 검색: : 첫번째로 찾은 책의 주소를 return하고 노드의 끝까지 검색합니다
-book *SearchBookByName(book *bhead, char *name) {
-  book *tmp = bhead;  
-  book *firstBook = NULL;
-
-  while (tmp) {
-      if (strcmp(tmp->book_name, name) == 0) {
-          if (firstBook == NULL) 
-              firstBook = tmp;
-          totalBooks++;
-          if (tmp->available == 'N') 
-              borrowedBooks++;        
-      }
-      tmp = tmp->next;
-  }
-  return firstBook;
-}
-
-// 저자명으로 검색
-void SearchBookByAuthor(book *bhead, char *author) {
+// 도서 검색 함수(제목, 저자, 출판사: 중복 검색결과가 존재할수 있음->isbn을 누적하는 구조체 리스트로 관리)
+void SearchBook(book *bhead, int searchType, char *searchWord) {
     book *tmp = bhead;
-    book currentBook; 
-    currentBook.book_name[0] = '\0';
-    int totalBooks = 0, borrowedBooks = 0;
+    search *searchList = NULL; // search 리스트 초기화
+    search *searchTmp = NULL;
+    int match = 0;
 
     printf("\n>> 검색 결과 <<\n");
+
+    // 도서 목록을 순회
     while (tmp) {
-        if (strcmp(tmp->author, author) == 0) {
-            if (strcmp(currentBook.book_name, tmp->book_name) != 0) {
-                if (currentBook.book_name[0] != '\0') {
-                    printf("도서명: %s\n", currentBook.book_name);
-                    printf("저자명: %s\n", currentBook.author);
-                    printf("출판사: %s\n", currentBook.publisher);
-                    printf("ISBN: %lld\n", currentBook.isbn);
-                    printf("소장처: %s\n", currentBook.location);
-                    printf("대여 가능 여부: ");
-                    if(totalBooks > borrowedBooks)
-                        printf("Y");
-                    else
-                        printf("N");
-                    printf("%d/%d\n", borrowedBooks, totalBooks);
-                    printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)\n");
+        // 조건에 맞는 도서를 찾은 경우
+        if ((searchType == 1 && strcmp(tmp->book_name, searchWord) == 0) ||
+            (searchType == 2 && strcmp(tmp->author, searchWord) == 0) ||
+            (searchType == 3 && strcmp(tmp->publisher, searchWord) == 0)) {
+            match = 1;
+            // search 리스트에 해당 ISBN이 이미 있는지 확인
+            searchTmp = searchList;
+            while (searchTmp) {
+                if (searchTmp->isbn == tmp->isbn) {
+                    // 이미 존재하는 ISBN이면 누적
+                    searchTmp->total++;
+                    if (tmp->available == 'N') {
+                        searchTmp->borrowed++;
+                    }
+                    break;
                 }
-                strcpy(currentBook.book_name, tmp->book_name);
-                strcpy(currentBook.publisher, tmp->publisher);
-                strcpy(currentBook.author, tmp->author);
-                currentBook.isbn = tmp->isbn;
-                strcpy(currentBook.location, tmp->location);
-                totalBooks = 0;
-                borrowedBooks = 0;
+                searchTmp = searchTmp->next;
             }
-            totalBooks++;
-            if (tmp->available == 'N') {
-                borrowedBooks++;
+
+            // 해당 ISBN이 리스트에 없다면 새로 추가
+            if (searchTmp == NULL) {
+                search *newSearch = (search *)malloc(sizeof(search));
+                newSearch->isbn = tmp->isbn;
+                newSearch->total = 1;
+                newSearch->borrowed = (tmp->available == 'N') ? 1 : 0;
+                newSearch->next = searchList;
+                searchList = newSearch;
             }
         }
+
         tmp = tmp->next;
     }
-        if (currentBook.book_name[0] != '\0') {
-            printf("도서명: %s\n", currentBook.book_name);
-            printf("저자명: %s\n", currentBook.author);
-            printf("출판사: %s\n", currentBook.publisher);
-            printf("ISBN: %lld\n", currentBook.isbn);
-            printf("소장처: %s\n", currentBook.location);
+
+    // 검색 결과 출력
+    if (match) {
+        searchTmp = searchList;
+        while (searchTmp) {
+            printf("\nISBN: %lld\n", searchTmp->isbn);
+            printf("총 권수: %d\n", searchTmp->total);
+            printf("대여된 권수: %d\n", searchTmp->borrowed);
             printf("대여 가능 여부: ");
-            if(totalBooks > borrowedBooks)
-                printf("Y");
-            else
-                printf("N");
-            printf("%d/%d\n", borrowedBooks, totalBooks);
-            printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)\n");
-        }
-    else {
-        printf("검색결과가 없습니다.\n");
-        return;
-    }
-}
-
-
-// 출판사명으로 검색: 동일한 출판사의 여러권을 출력(출판사검색 후 제목으로 검색 한번 더 함)
-void SearchBooksByPublisher(book *bhead, char *publisher) {
-    book *tmp = bhead;
-    book currentBook; 
-    currentBook.book_name[0] = '\0'; 
-    int totalBooks = 0, borrowedBooks = 0;
-
-    printf("\n>> 검색 결과 <<\n");
-    while (tmp) {
-        if (strcmp(tmp->publisher, publisher) == 0) {
-            if (strcmp(currentBook.book_name, tmp->book_name) != 0) {
-                if (currentBook.book_name[0] != '\0') {
-                    printf("도서명: %s\n", currentBook.book_name);
-                    printf("출판사: %s\n", currentBook.publisher);
-                    printf("저자명: %s\n", currentBook.author);
-                    printf("ISBN: %lld\n", currentBook.isbn);
-                    printf("소장처: %s\n", currentBook.location);
-                    printf("대여 가능 여부: ");
-                    if (totalBooks > borrowedBooks)
-                        printf("Y");
-                    else
-                        printf("N");
-                    printf("%d/%d\n", borrowedBooks, totalBooks);
-                    printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)\n");
-                }
-                strcpy(currentBook.book_name, tmp->book_name);
-                strcpy(currentBook.publisher, tmp->publisher);
-                strcpy(currentBook.author, tmp->author);
-                currentBook.isbn = tmp->isbn;
-                strcpy(currentBook.location, tmp->location);
-                totalBooks = 0;
-                borrowedBooks = 0;
+            if (searchTmp->total > searchTmp->borrowed) {
+                printf("Y\n");
+            } else {
+                printf("N\n");
             }
-            totalBooks++;
-            if (tmp->available == 'N') {
-                borrowedBooks++;
-            }
+            printf("%d/%d\n", searchTmp->borrowed, searchTmp->total);
+            printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)");
+            searchTmp = searchTmp->next;
         }
-        tmp = tmp->next;
-    }
-
-    if (currentBook.book_name[0] != '\0') {
-        printf("도서명: %s\n", currentBook.book_name);
-        printf("출판사: %s\n", currentBook.publisher);
-        printf("저자명: %s\n", currentBook.author);
-        printf("ISBN: %lld\n", currentBook.isbn);
-        printf("소장처: %s\n", currentBook.location);
-        printf("대여 가능 여부: ");
-        if (totalBooks > borrowedBooks)
-            printf("Y");
-        else
-            printf("N");
-        printf("%d/%d\n", borrowedBooks, totalBooks);
-        printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)\n");
     } 
     else {
         printf("검색결과가 없습니다.\n");
     }
+
+    // search 리스트 메모리 해제
+    while (searchList) {
+        searchTmp = searchList;
+        searchList = searchList->next;
+        free(searchTmp);
+    }
 }
+
+
 
 // ISBN으로 검색: : 첫번째로 찾은 책의 주소를 return하고 노드의 끝까지 검색합니다
 book *SearchBookByISBN(book *bhead, long long isbn) {
