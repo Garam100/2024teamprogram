@@ -34,9 +34,13 @@ typedef struct borrow {
 } borrow;
 
 typedef struct search { //동일한 검색결과를 isbn별로 누적해서 더하기 위해 만들었습니다
-    long long isbn;
-    int total;
-    int borrowed;
+    char book_name[50];  // 도서명
+    char publisher[30];  // 출판사
+    char author[30];     // 저자명
+    long long isbn;      // ISBN
+    char location[50];   // 소장처
+    int total;           // 총 권수
+    int borrowed;        // 대여된 권수
     struct search *next;
 } search;
 
@@ -147,15 +151,11 @@ void BookSearch(book *bhead) {
 // 도서 검색 함수(제목, 저자, 출판사: 중복 검색결과가 존재할수 있음->isbn을 누적하는 구조체 리스트로 관리)
 void SearchBook(book *bhead, int searchType, char *searchWord) {
     book *tmp = bhead;
-    search *searchList = NULL; // search 리스트 초기화
+    search *searchList = NULL;
     search *searchTmp = NULL;
     int match = 0;
-
     printf("\n>> 검색 결과 <<\n");
-
-    // 도서 목록을 순회
     while (tmp) {
-        // 조건에 맞는 도서를 찾은 경우
         if ((searchType == 1 && strcmp(tmp->book_name, searchWord) == 0) ||
             (searchType == 2 && strcmp(tmp->author, searchWord) == 0) ||
             (searchType == 3 && strcmp(tmp->publisher, searchWord) == 0)) {
@@ -173,35 +173,36 @@ void SearchBook(book *bhead, int searchType, char *searchWord) {
                 }
                 searchTmp = searchTmp->next;
             }
-
             // 해당 ISBN이 리스트에 없다면 새로 추가
             if (searchTmp == NULL) {
                 search *newSearch = (search *)malloc(sizeof(search));
+                strcpy(newSearch->book_name, tmp->book_name);
+                strcpy(newSearch->publisher, tmp->publisher);
+                strcpy(newSearch->author, tmp->author);
                 newSearch->isbn = tmp->isbn;
+                strcpy(newSearch->location, tmp->location);
                 newSearch->total = 1;
                 newSearch->borrowed = (tmp->available == 'N') ? 1 : 0;
                 newSearch->next = searchList;
                 searchList = newSearch;
             }
         }
-
         tmp = tmp->next;
     }
-
     // 검색 결과 출력
     if (match) {
         searchTmp = searchList;
         while (searchTmp) {
-            printf("\nISBN: %lld\n", searchTmp->isbn);
-            printf("총 권수: %d\n", searchTmp->total);
-            printf("대여된 권수: %d\n", searchTmp->borrowed);
-            printf("대여 가능 여부: ");
-            if (searchTmp->total > searchTmp->borrowed) {
-                printf("Y\n");
-            } else {
-                printf("N\n");
-            }
-            printf("%d/%d\n", searchTmp->borrowed, searchTmp->total);
+            int borrowedBooks = searchTmp->borrowed;
+            int totalBooks = searchTmp->total;
+            char available = (borrowedBooks < totalBooks) ? 'Y' : 'N';
+            printf("\n도서명: %s\n", searchTmp->book_name);
+            printf("출판사: %s\n", searchTmp->publisher);
+            printf("저자명: %s\n", searchTmp->author);
+            printf("ISBN: %lld\n", searchTmp->isbn);
+            printf("소장처: %s\n", searchTmp->location);
+            printf("대여 가능 여부: %c\n", available);
+            printf("%d/%d\n", borrowedBooks, totalBooks);
             printf("** Y는 대여가능, N은 대여불가를 의미\n** (x/y) : (대여된 총 권수 / 보유하고 있는 총 권수)");
             searchTmp = searchTmp->next;
         }
@@ -209,7 +210,6 @@ void SearchBook(book *bhead, int searchType, char *searchWord) {
     else {
         printf("검색결과가 없습니다.\n");
     }
-
     // search 리스트 메모리 해제
     while (searchList) {
         searchTmp = searchList;
@@ -217,7 +217,6 @@ void SearchBook(book *bhead, int searchType, char *searchWord) {
         free(searchTmp);
     }
 }
-
 
 
 // ISBN으로 검색: : 첫번째로 찾은 책의 주소를 return하고 노드의 끝까지 검색합니다
