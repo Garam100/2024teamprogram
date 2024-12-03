@@ -6,7 +6,7 @@
 
 // 구조체
 typedef struct client {
-    int id;                 // 학번
+    char id[20];            // 학번
     char password[20];      // 비밀번호
     char name[30];          // 이름
     char address[50];       // 주소
@@ -26,7 +26,7 @@ typedef struct book {
 } book;
 
 typedef struct borrow {
-    int client_id;          // 학번
+    char client_id[20];     // 학번
     int book_id;            // 도서번호
     time_t borrow_date;     // 대여일자
     time_t return_date;     // 반납일자
@@ -34,15 +34,15 @@ typedef struct borrow {
 } borrow;
 
 // 함수 선언
-void UserMenu(book *, client *, borrow *, int);
+void UserMenu(book *, client *, borrow *, char *);
 void BookSearch(book *);
-void ShowBorrowList(borrow *, book *, int);
-void DeleteAccount(client **, int, borrow *);
-void ResetInfo(client **, int);
+void ShowBorrowList(borrow *, book *, char *);
+void DeleteAccount(client **, char *, borrow *);
+void ResetInfo(client **, char *);
 void PrintSearchResult(book *);
 book *SearchBookByName(book *, char *);
-void SearchBookByAuthor(book *,char *);
-void *SearchBookByPublisher(book *, char *);
+void SearchBookByAuthor(book *, char *);
+void SearchBooksByPublisher(book *, char *);
 book *SearchBookByISBN(book *, long long);
 book *SearchBookByBookID(book *, int);
 void PrintAllBooks(book *);
@@ -55,13 +55,14 @@ int borrowedBooks;
 
 // 회원 메뉴: 파일을 읽고 생성한 구조체 헤드와 로그인한 학번을 인자로 받습니다
 //bhead는 책, chead는 회원, dhead는 대여 헤드입니다
-void UserMenu(book *bhead, client *chead, borrow *dhead,int login_id) {
+void UserMenu(book *bhead, client *chead, borrow *dhead, char *login_id) {
     int menu;
     while (1) {
         printf("\n>> 회원 메뉴 <<\n");
         printf("1. 도서 검색  2. 내 대여 목록\n3. 개인정보 수정  4. 회원 탈퇴\n5. 로그아웃  6. 프로그램 종료\n\n");
         printf("번호를 선택하세요: ");
         scanf("%d", &menu);
+        getchar(); // 버퍼 비우기
         switch (menu) {
             case 1:
                 system("clear");
@@ -71,10 +72,10 @@ void UserMenu(book *bhead, client *chead, borrow *dhead,int login_id) {
                 ShowBorrowList(dhead, bhead, login_id);
                 break;
             case 3:
-                ResetInfo(&chead, login_id);//이 함수가 끝나면 파일과 client노드가 수정됩니다
+                ResetInfo(&chead, login_id);
                 break;
             case 4:
-                DeleteAccount(&chead, login_id, dhead);//이 함수가 끝나면 파일과 client노드가 수정됩니다
+                DeleteAccount(&chead, login_id, dhead);
                 return;
             case 5:
                 printf("로그아웃합니다.\n");
@@ -345,55 +346,65 @@ void PrintAllBooks(book *bhead) {
 }
 
 // 내 대여 목록 출력
-void ShowBorrowList(borrow *dhead, book *bhead, int login_id) {
-  borrow *borrow_tmp = dhead;  
-  book *book_tmp = NULL;
-  struct tm *borrowDate = NULL, *returnDate = NULL;
-  char *weekdays[] = {"일", "월", "화", "수", "목", "금", "토"}; 
-  printf("\n>> 내 대여 목록 <<\n");  
-  while (borrow_tmp) {
-      if(borrow_tmp->client_id ==login_id){
-          book_tmp=SearchBookByBookID(bhead, borrow_tmp->book_id);
-          borrowDate = localtime(&borrow_tmp->borrow_date);
-          returnDate = localtime(&borrow_tmp->return_date);
-          printf("도서번호: %d\n", book_tmp->book_id);
-          printf("도서명: %s\n", book_tmp->book_name);
-          printf("대여일자: %d년 %d월 %d일 %s요\n",borrowDate->tm_year+1900,borrowDate->tm_mon+1,borrowDate->tm_mday, weekdays[borrowDate->tm_wday]);
-          printf("반납일자: %d년 %d월 %d일 %s요일\n\n",returnDate->tm_year+1900,returnDate->tm_mon+1,returnDate->tm_mday, weekdays[returnDate->tm_wday]);
-      }
-      borrow_tmp = borrow_tmp->next;
-  }
-}
+void ShowBorrowList(borrow *dhead, book *bhead, char *login_id) {
+    borrow *borrow_tmp = dhead;
+    book *book_tmp = NULL;
+    struct tm *borrowDate = NULL, *returnDate = NULL;
+    char *weekdays[] = {"일", "월", "화", "수", "목", "금", "토"};
 
+    printf("\n>> 내 대여 목록 <<\n");
+    while (borrow_tmp) {
+        if (strcmp(borrow_tmp->client_id, login_id) == 0) {
+            book_tmp = SearchBookByBookID(bhead, borrow_tmp->book_id);
+            borrowDate = localtime(&borrow_tmp->borrow_date);
+            returnDate = localtime(&borrow_tmp->return_date);
+
+            printf("도서번호: %d\n", book_tmp->book_id);
+            printf("도서명: %s\n", book_tmp->book_name);
+            printf("대여일자: %d년 %d월 %d일 %s요일\n", borrowDate->tm_year + 1900,
+                   borrowDate->tm_mon + 1, borrowDate->tm_mday, weekdays[borrowDate->tm_wday]);
+            printf("반납일자: %d년 %d월 %d일 %s요일\n\n", returnDate->tm_year + 1900,
+                   returnDate->tm_mon + 1, returnDate->tm_mday, weekdays[returnDate->tm_wday]);
+        }
+        borrow_tmp = borrow_tmp->next;
+    }
+}
 
 //수정된 연결리스트 파일에 저장하는 함수
 void SaveToFile(client *chead) {
-    FILE *file = fopen("client.txt", "w"); // client.txt파일 열기(파일명 다르면 수정해주세요)
-    client *tmp = chead;
-    while (tmp) {
-        fprintf(file, "%08d | %s | %s | %s | %s\n", tmp->id, tmp->password, tmp->name, tmp->address, tmp->phone);
-        tmp = tmp->next;
+    FILE *file = fopen("client.txt", "w");
+    if (!file) {
+        printf("파일 저장 실패.\n");
+        return;
+    }
+
+    while (chead) {
+        fprintf(file, "%s | %s | %s | %s | %s\n", chead->id, chead->password,
+                chead->name, chead->address, chead->phone);
+        chead = chead->next;
     }
     fclose(file);
 }
 
 // 회원 탈퇴 : borrow노드에 id가 없으면 id삭제
-void DeleteAccount(client **chead, int login_id, borrow *dhead) {
-    borrow * dtmp = dhead;  
+void DeleteAccount(client **chead, char *login_id, borrow *dhead) {
+    borrow *dtmp = dhead;
     while (dtmp) {
-        if (dtmp->client_id == login_id) {
-            printf("반납하지 않은 도서가 있습니다.");
+        if (strcmp(dtmp->client_id, login_id) == 0) {
+            printf("반납하지 않은 도서가 있습니다.\n");
             return;
         }
         dtmp = dtmp->next;
     }
+
     client *tmp1 = *chead, *tmp2 = NULL;
     while (tmp1) {
-        if (tmp1->id == login_id) {
-            if (tmp2)
+        if (strcmp(tmp1->id, login_id) == 0) {
+            if (tmp2) {
                 tmp2->next = tmp1->next;
-            else
+            } else {
                 *chead = tmp1->next;
+            }
             free(tmp1);
             printf("회원 탈퇴가 완료되었습니다.\n");
             SaveToFile(*chead);
@@ -401,14 +412,14 @@ void DeleteAccount(client **chead, int login_id, borrow *dhead) {
         }
         tmp2 = tmp1;
         tmp1 = tmp1->next;
-    } 
+    }
 }
 
 // 개인정보 수정(노드를 수정하고 파일을 수정된 노드로 덮어씌움)
-void ResetInfo(client **chead, int login_id) {
+void ResetInfo(client **chead, char *login_id) {
     client *temp = *chead;
     while (temp) {
-        if (temp->id == login_id) {
+        if (strcmp(temp->id, login_id) == 0) {
             printf("새로운 비밀번호를 입력하세요");
             scanf("%19[^\n]", temp->password);
             getchar();
